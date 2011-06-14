@@ -1,6 +1,7 @@
 (ns greengrocer.core
   "Helper methods for testing Ring web applications."
   (:use [net.cgrand.enlive-html :only [html-resource]])
+  (:import java.net.URLEncoder java.net.URLDecoder)
   (:require [clojure.string :as string])
   (:require [clojure.contrib.string :as ccstr])
   (:require [clojure.test :as test]))
