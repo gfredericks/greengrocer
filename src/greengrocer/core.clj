@@ -69,7 +69,7 @@
                      (= form-id (:id attrs)))))
             :attrs)]
     [(-> method clojure.string/lower-case keyword)
-     action]))
+     (or action (:uri resp))]))
 
 (defn- stringize-keys
   [m]
@@ -101,7 +101,10 @@
             h),
         query-params (merge (or query-params {}) (or query-string-params {})),
         h (if-not (empty? query-params) (assoc h :params (stringize-keys query-params)) h)]
-    (*app* h)))
+    ; We attach the :uri to the response for use with default form paths and such
+    (assoc
+      (*app* h)
+      :uri uri)))
 
 (def GET (partial request :get))
 (def POST (partial request :post))
