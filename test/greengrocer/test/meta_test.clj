@@ -11,19 +11,19 @@
      ~@body
      @*report-counters*))
 
-(defmacro should-fail
+(defmacro this-greengrocer-test-should-fail
   [& body]
   `(let [res# (get-test-results ~@body)]
      (is (pos? (+ (:fail res#) (:error res#))))))
 
-(defmacro should-succeed
+(defmacro this-greengrocer-test-should-pass
   [& body]
   `(let [res# (get-test-results ~@body)]
      (is (zero? (+ (:fail res#) (:error res#))))
      (is (pos? (:pass res#)))))
 
-(deftest should-fail-test
-  (should-fail (is (zero? 4))))
+(deftest this-greengrocer-test-should-fail-test
+  (this-greengrocer-test-should-fail (is (zero? 4))))
 
-(deftest should-succeed-test
-  (should-succeed (is (pos? 4))))
+(deftest this-greengrocer-test-should-pass-test
+  (this-greengrocer-test-should-pass (is (pos? 4))))

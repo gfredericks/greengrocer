@@ -4,15 +4,15 @@
   (:use [clojure.test]))
 
 (deftest http-success-test
-  (should-succeed
+  (this-greengrocer-test-should-pass
     (should-be-successful
       {:status 200}))
-  (should-fail
+  (this-greengrocer-test-should-fail
     (should-be-successful
       {:status 404}))
-  (should-succeed
+  (this-greengrocer-test-should-pass
     (should-not-be-successful
       {:status 404}))
-  (should-fail
+  (this-greengrocer-test-should-fail
     (should-not-be-successful
       {:status 300})))
