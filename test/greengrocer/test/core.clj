@@ -28,4 +28,15 @@
           "item-form"
           {:item "tacos"})
         (follow-redirect)
+        (should-see "tacos"))))
+  (this-greengrocer-test-should-fail
+    (binding [*app* session-app]
+      (->
+        (GET "/")
+        (should-not-see "tacos")
+        (submit-form-with
+          "item-form"
+          {:item "tacos"}))
+      (->
+        (GET "/")
         (should-see "tacos")))))
