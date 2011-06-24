@@ -82,6 +82,18 @@
   (if-let [[_ uri qs] (re-matches #"(.*)\?(.*)" s)]
     [uri (decode-query-string qs)]
     [s nil]))
+
+(defn- wrap-new-cookies
+  "Checks the response for a 'Set-Cookie' header and if
+   exists adds it to the :cookies key. I think there's a lot
+   of cookie edge cases being ignored here."
+  [resp]
+  (if-let [set-cookie (-> resp :headers (get "Set-Cookie"))]
+    (let [[_ cookie-name cookie-value _]
+            (re-matches #"([-\w]+)=([-\w]+)(;.*)?" (first set-cookie))]
+      (update-in resp [:cookies cookie-name] (constantly cookie-value)))
+    resp))
+
 ;;;
 ;;; Public API
 ;;;
@@ -91,7 +103,7 @@
 (defn request
   [method uri & opts]
   (let [[uri query-string-params] (check-uri-for-query-string uri),
-        {:keys [headers form-params query-params]} (apply hash-map opts),
+        {:keys [headers cookies form-params query-params]} (apply hash-map opts),
         h {:request-method method,
            :uri uri},
         h (if headers (assoc h :headers headers) h),
@@ -99,12 +111,19 @@
             (assoc h :content-type "application/x-www-form-urlencoded",
                     :body (-> form-params encode-map java.io.StringReader.))
             h),
+        h (if cookies
+            (update-in h [:headers "cookie"]
+              (constantly (string/join ";" (for [[k v] cookies] (str k "=" v)))))
+            h),
         query-params (merge (or query-params {}) (or query-string-params {})),
-        h (if-not (empty? query-params) (assoc h :params (stringize-keys query-params)) h)]
-    ; We attach the :uri to the response for use with default form paths and such
-    (assoc
-      (*app* h)
-      :uri uri)))
+        h (if-not (empty? query-params) (assoc h :params (stringize-keys query-params)) h),
+        resp (*app* h)]
+    (->
+      resp
+      (assoc :cookies (:cookies opts))
+      (wrap-new-cookies)
+      ; We attach the :uri to the response for use with default form paths and such
+      (assoc :uri uri))))
 
 (def GET (partial request :get))
 (def POST (partial request :post))
@@ -120,32 +139,25 @@
   [resp text]
   (ccstr/substring? text (linebreakify (:body resp))))
 
-(defn- get-cookie
-  [{headers :headers}]
-  (if headers
-    (if-let [cookie (first (headers "Set-Cookie"))]
-      (if-let [m (re-matches #"^([^;]+)(;.*|$)" cookie)]
-        (m 1)))))
-
 (defn follow-redirect
   [resp]
   (-> resp
       :headers
       (get "Location")
       (fail-if-nil (str "Response is not a redirect: " (pr-str resp)))
-      (GET :headers {"cookie" (get-cookie resp)})))
+      (GET :cookies (:cookies resp))))
 
 (defn follow-link
   [resp link-text]
   (-> resp
       (find-path-for-link link-text)
       (fail-if-nil (str "Cannot find link with text: " link-text))
-      GET))
+      (GET :cookies (:cookies resp))))
 
 (defn submit-form-with
   [resp form-id args]
   (let [[method path] (find-form-params resp form-id)]
-    (request method path :form-params args)))
+    (request method path :form-params args :cookies (:cookies resp))))
 
 ;; Assertion helpers
 ;;   Each one takes a response object and maybe some args, asserts something
